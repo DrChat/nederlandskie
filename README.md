@@ -1,8 +1,12 @@
-# `nederlandskie`
+# `democraskie`
 
 A Bluesky feed generator written in Rust.
 
-The specific algorithm indexes and serves posts written in Russian language, by people living in Netherlands.
+This is a fork of despawnerer's [nederlandskie](https://github.com/despawnerer/nederlandskie), with an implementation of the algorithm described by [this research paper](https://arxiv.org/pdf/2307.13912).
+
+Specifically, this feed catalogues political content but with an emphasis on positive partisanship rather than negative.
+
+## Technical rundown
 
 - Posts are stored in PostgreSQL via [`sqlx`](https://crates.io/crates/sqlx) and [`scooby`](https://crates.io/crates/scooby)
 - Language of posts is determined via [`lingua-rs`](https://crates.io/crates/lingua)
@@ -10,17 +14,9 @@ The specific algorithm indexes and serves posts written in Russian language, by 
 - Feed is served via [`axum`](https://crates.io/crates/axum)
 - Intefacing with Bluesky is implemented using [`atrium-api`](https://crates.io/crates/atrium-api)
 
-Deployed in production at https://nederlandskie.plansfortheday.org/
-
-Published on Bluesky at https://bsky.app/profile/did:plc:376mcc6k4s5p7qbtyjrgph5k/feed/nederlandskie.
-
 ## Setup
 
-1. Set up a PostgreSQL database
-
-2. Create tables using SQL provided in [`sql`](./sql) directory.
-
-3. Copy `.env.example` into `.env` and set up the environment variables within:
+1. Copy `.env.example` into `.env` and set up the environment variables within:
 
    - `PUBLISHER_BLUESKY_HANDLE` to your Bluesky handle
    - `PUBLISHER_BLUESKY_PASSWORD` to Bluesky app password that you created in settings
@@ -28,13 +24,17 @@ Published on Bluesky at https://bsky.app/profile/did:plc:376mcc6k4s5p7qbtyjrgph5
    - `DATABASE_URL` for PostgreSQL credentials
    - `FEED_GENERATOR_HOSTNAME` to the hostname of where you intend to host the feed
 
-4. Determine your own DID and put it in `PUBLISHER_DID` env variable in `.env`:
+2. Determine your own DID and put it in `PUBLISHER_DID` env variable in `.env`:
 
    ```
    cargo run --bin who_am_i
    ```
 
 ## Running
+
+```
+docker-compose up
+```
 
 ### Populate and serve the feed
 
