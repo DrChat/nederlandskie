@@ -2,7 +2,7 @@ extern crate nederlandskie;
 
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use env_logger::Env;
 use lingua::LanguageDetectorBuilder;
 use log::info;
@@ -18,13 +18,17 @@ async fn main() -> Result<()> {
 
     info!("Loading configuration");
 
-    let config = Arc::new(Config::load()?);
+    let config = Arc::new(Config::load().context("failed to load configuration")?);
 
     info!("Initializing service clients");
 
     let ai = Arc::new(AI::new(&config.chat_gpt_api_key, "https://api.openai.com"));
     let bluesky = Arc::new(Bluesky::unauthenticated());
-    let database = Arc::new(Database::connect(&config.database_url).await?);
+    let database = Arc::new(
+        Database::connect(&config.database_url)
+            .await
+            .context("failed to connect to database")?,
+    );
 
     info!("Initializing language detector");
 
@@ -58,7 +62,8 @@ async fn main() -> Result<()> {
         tokio::spawn(post_indexer.start()),
         tokio::spawn(profile_classifier.start()),
         tokio::spawn(feed_server.serve()),
-    )?;
+    )
+    .context("failed to join tasks")?;
 
     Ok(())
 }

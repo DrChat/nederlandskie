@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use atrium_api::types::string::Did;
 use dotenv::dotenv;
 use std::env;
@@ -21,10 +21,10 @@ impl Config {
             feed_generator_hostname: env::var("FEED_GENERATOR_HOSTNAME")?,
             feed_generator_did: format!("did:web:{}", env::var("FEED_GENERATOR_HOSTNAME")?)
                 .parse()
-                .map_err(anyhow::Error::msg)?,
+                .map_err(|_e| anyhow!("invalid generator hostname DID"))?,
             publisher_did: env::var("PUBLISHER_DID")?
                 .parse()
-                .map_err(anyhow::Error::msg)?,
+                .map_err(|_e| anyhow!("invalid publishder DID"))?,
         })
     }
 }
