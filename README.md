@@ -36,6 +36,13 @@ Specifically, this feed catalogues political content but with an emphasis on pos
 docker-compose up
 ```
 
+### Development
+
+```
+docker-compose up -d db
+cargo run
+```
+
 ### Populate and serve the feed
 
 `cargo run`

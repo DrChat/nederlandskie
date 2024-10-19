@@ -98,10 +98,12 @@ fn parse_commit_from_message(message: &[u8]) -> Result<Option<Commit>> {
             if t == "#commit" {
                 Ok(serde_ipld_dagcbor::from_reader(message.body.as_slice())?)
             } else {
+                // Spec: "Clients should ignore frames with headers that have unknown `op` or `t` values"
                 Ok(None)
             }
         }
         Frame::Message(None, _) => Ok(None),
+        // Spec: "Streams should be closed immediately following transmitting or receiving an error frame."
         Frame::Error(err) => panic!("Frame error: {err:?}"),
     }
 }

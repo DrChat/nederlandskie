@@ -26,8 +26,8 @@ services:
       - 8000:8000
     networks:
       - backend
-    # environment:
-    #   DATABASE_URL: 'postgres://postgres:postgres@db/nederlandskie'
+    environment:
+      DATABASE_URL: 'postgres://postgres:postgres@db/nederlandskie'
     volumes:
       - ./.env:/app/.env
     links:
