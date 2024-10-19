@@ -1,12 +1,10 @@
 use std::{collections::HashMap, time::Duration};
 
 use anyhow::Result;
-use async_trait::async_trait;
 use atrium_api::com::atproto::sync::subscribe_repos::Commit;
 use atrium_api::types::Collection;
 use chrono::{DateTime, Utc};
-use log::error;
-use tokio_stream::StreamExt;
+use tokio_stream::{Stream, StreamExt};
 use tokio_tungstenite::{connect_async, tungstenite};
 
 use super::{
@@ -20,11 +18,6 @@ const ACTION_DELETE: &str = "delete";
 
 pub const FIREHOSE_HOST: &'static str = "wss://bsky.network";
 pub const STREAMING_TIMEOUT: Duration = Duration::from_secs(60);
-
-#[async_trait]
-pub trait CommitProcessor {
-    async fn process_commit(&self, commit: &CommitDetails) -> Result<()>;
-}
 
 pub struct CommitDetails {
     pub seq: i64,
@@ -63,10 +56,12 @@ pub enum Operation {
     },
 }
 
-pub async fn subscribe_to_operations<P: CommitProcessor>(
-    processor: &P,
+/// Subscribe to the bluesky firehose.
+pub async fn subscribe_to_operations(
     cursor: Option<i64>,
-) -> Result<()> {
+) -> Result<
+    impl Stream<Item = Result<Result<tungstenite::Message, tungstenite::Error>, tokio_stream::Elapsed>>,
+> {
     let url = match cursor {
         Some(cursor) => format!(
             "{}/xrpc/com.atproto.sync.subscribeRepos?cursor={}",
@@ -77,34 +72,24 @@ pub async fn subscribe_to_operations<P: CommitProcessor>(
 
     let (stream, _) = connect_async(url).await?;
     let stream = stream.timeout(STREAMING_TIMEOUT);
-    let mut stream = Box::pin(stream);
+    let stream = Box::pin(stream);
 
-    while let Some(Ok(tungstenite::Message::Binary(message))) = stream.try_next().await? {
-        if let Err(e) = handle_message(&message, processor).await {
-            error!("Error handling a message: {:?}", e);
-        }
-    }
-
-    Ok(())
+    Ok(stream)
 }
 
-pub async fn handle_message<P: CommitProcessor>(message: &[u8], processor: &P) -> Result<()> {
+pub async fn handle_message(message: &[u8]) -> Result<Option<CommitDetails>> {
     let commit = match parse_commit_from_message(message)? {
         Some(commit) => commit,
-        None => return Ok(()),
+        None => return Ok(None),
     };
 
     let operations = extract_operations(&commit).await?;
 
-    processor
-        .process_commit(&CommitDetails {
-            seq: commit.seq,
-            time: (*commit.time.as_ref()).into(),
-            operations,
-        })
-        .await?;
-
-    Ok(())
+    Ok(Some(CommitDetails {
+        seq: commit.seq,
+        time: (*commit.time.as_ref()).into(),
+        operations,
+    }))
 }
 
 fn parse_commit_from_message(message: &[u8]) -> Result<Option<Commit>> {

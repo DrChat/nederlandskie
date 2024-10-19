@@ -1,13 +1,14 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::Result;
-use async_trait::async_trait;
+use anyhow::{Context, Result};
 use log::{debug, error, info};
+use tokio_stream::StreamExt;
+use tokio_tungstenite::tungstenite;
 
 use crate::algos::Algos;
 use crate::config::Config;
-use crate::services::bluesky::{self, CommitDetails, CommitProcessor, Operation, FIREHOSE_HOST};
+use crate::services::bluesky::{self, CommitDetails, Operation, FIREHOSE_HOST};
 use crate::services::Database;
 
 pub struct PostIndexer {
@@ -55,12 +56,21 @@ impl PostIndexer {
 
         info!("Subscribing with cursor {:?}", cursor);
 
-        bluesky::subscribe_to_operations(self, cursor).await
-    }
-}
+        let mut stream = bluesky::subscribe_to_operations(cursor)
+            .await
+            .context("failed to subscribe")?;
 
-#[async_trait]
-impl CommitProcessor for PostIndexer {
+        while let Some(Ok(tungstenite::Message::Binary(message))) = stream.try_next().await? {
+            match bluesky::handle_message(&message).await {
+                Ok(Some(commit)) => self.process_commit(&commit).await?,
+                Ok(None) => continue,
+                Err(e) => error!("Error handling a message: {:?}", e),
+            }
+        }
+
+        Ok(())
+    }
+
     async fn process_commit(&self, commit: &CommitDetails) -> Result<()> {
         for operation in &commit.operations {
             match operation {
