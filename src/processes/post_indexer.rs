@@ -7,26 +7,19 @@ use log::{debug, error, info};
 
 use crate::algos::Algos;
 use crate::config::Config;
-use crate::services::bluesky::{Bluesky, CommitDetails, CommitProcessor, Operation};
+use crate::services::bluesky::{self, CommitDetails, CommitProcessor, Operation, FIREHOSE_HOST};
 use crate::services::Database;
 
 pub struct PostIndexer {
     database: Arc<Database>,
-    bluesky: Arc<Bluesky>,
     algos: Arc<Algos>,
     config: Arc<Config>,
 }
 
 impl PostIndexer {
-    pub fn new(
-        database: Arc<Database>,
-        bluesky: Arc<Bluesky>,
-        algos: Arc<Algos>,
-        config: Arc<Config>,
-    ) -> Self {
+    pub fn new(database: Arc<Database>, algos: Arc<Algos>, config: Arc<Config>) -> Self {
         Self {
             database,
-            bluesky,
             algos,
             config,
         }
@@ -51,18 +44,18 @@ impl PostIndexer {
     async fn process_from_last_point(&self) -> Result<()> {
         let cursor = self
             .database
-            .fetch_subscription_cursor(Bluesky::FIREHOSE_HOST, &self.config.feed_generator_did)
+            .fetch_subscription_cursor(FIREHOSE_HOST, &self.config.feed_generator_did)
             .await?;
 
         if cursor.is_none() {
             self.database
-                .create_subscription_state(Bluesky::FIREHOSE_HOST, &self.config.feed_generator_did)
+                .create_subscription_state(FIREHOSE_HOST, &self.config.feed_generator_did)
                 .await?;
         }
 
         info!("Subscribing with cursor {:?}", cursor);
 
-        self.bluesky.subscribe_to_operations(self, cursor).await
+        bluesky::subscribe_to_operations(self, cursor).await
     }
 }
 
@@ -109,7 +102,7 @@ impl CommitProcessor for PostIndexer {
             );
             self.database
                 .update_subscription_cursor(
-                    Bluesky::FIREHOSE_HOST,
+                    FIREHOSE_HOST,
                     &self.config.feed_generator_did,
                     commit.seq,
                 )

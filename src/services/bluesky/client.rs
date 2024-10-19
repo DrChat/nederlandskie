@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::matches;
-use std::time::Duration;
 
 use anyhow::Result;
 use atrium_api::agent::{store::MemorySessionStore, AtpAgent};
@@ -8,12 +7,8 @@ use atrium_api::types::string::Datetime;
 use atrium_api::types::{BlobRef, Collection, Object, TryIntoUnknown};
 use atrium_xrpc_client::reqwest::ReqwestClient;
 use http::StatusCode;
-use log::error;
-use tokio_stream::StreamExt;
-use tokio_tungstenite::{connect_async, tungstenite};
 
 use super::entities::ProfileDetails;
-use super::streaming::{handle_message, CommitProcessor};
 
 pub struct Bluesky {
     agent: AtpAgent<MemorySessionStore, ReqwestClient>,
@@ -21,8 +16,6 @@ pub struct Bluesky {
 
 impl Bluesky {
     pub const XRPC_HOST: &'static str = "https://bsky.social";
-    pub const FIREHOSE_HOST: &'static str = "wss://bsky.network";
-    pub const STREAMING_TIMEOUT: Duration = Duration::from_secs(60);
 
     pub fn unauthenticated() -> Self {
         Self {
@@ -140,36 +133,6 @@ impl Bluesky {
             Err(e) if is_unable_to_resolve_handle_error(&e) => Ok(None),
             Err(e) => Err(e.into()),
         }
-    }
-
-    pub async fn subscribe_to_operations<P: CommitProcessor>(
-        &self,
-        processor: &P,
-        cursor: Option<i64>,
-    ) -> Result<()> {
-        let url = match cursor {
-            Some(cursor) => format!(
-                "{}/xrpc/com.atproto.sync.subscribeRepos?cursor={}",
-                Self::FIREHOSE_HOST,
-                cursor
-            ),
-            None => format!(
-                "{}/xrpc/com.atproto.sync.subscribeRepos",
-                Self::FIREHOSE_HOST
-            ),
-        };
-
-        let (stream, _) = connect_async(url).await?;
-        let stream = stream.timeout(Self::STREAMING_TIMEOUT);
-        let mut stream = Box::pin(stream);
-
-        while let Some(Ok(tungstenite::Message::Binary(message))) = stream.try_next().await? {
-            if let Err(e) = handle_message(&message, processor).await {
-                error!("Error handling a message: {:?}", e);
-            }
-        }
-
-        Ok(())
     }
 }
 

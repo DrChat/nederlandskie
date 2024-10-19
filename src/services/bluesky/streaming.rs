@@ -1,10 +1,13 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::Result;
 use async_trait::async_trait;
 use atrium_api::com::atproto::sync::subscribe_repos::Commit;
 use atrium_api::types::Collection;
 use chrono::{DateTime, Utc};
+use log::error;
+use tokio_stream::StreamExt;
+use tokio_tungstenite::{connect_async, tungstenite};
 
 use super::{
     entities::{FollowRecord, LikeRecord, PostRecord},
@@ -14,6 +17,9 @@ use super::{
 
 const ACTION_CREATE: &str = "create";
 const ACTION_DELETE: &str = "delete";
+
+pub const FIREHOSE_HOST: &'static str = "wss://bsky.network";
+pub const STREAMING_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[async_trait]
 pub trait CommitProcessor {
@@ -55,6 +61,31 @@ pub enum Operation {
     DeleteFollow {
         uri: String,
     },
+}
+
+pub async fn subscribe_to_operations<P: CommitProcessor>(
+    processor: &P,
+    cursor: Option<i64>,
+) -> Result<()> {
+    let url = match cursor {
+        Some(cursor) => format!(
+            "{}/xrpc/com.atproto.sync.subscribeRepos?cursor={}",
+            FIREHOSE_HOST, cursor
+        ),
+        None => format!("{}/xrpc/com.atproto.sync.subscribeRepos", FIREHOSE_HOST),
+    };
+
+    let (stream, _) = connect_async(url).await?;
+    let stream = stream.timeout(STREAMING_TIMEOUT);
+    let mut stream = Box::pin(stream);
+
+    while let Some(Ok(tungstenite::Message::Binary(message))) = stream.try_next().await? {
+        if let Err(e) = handle_message(&message, processor).await {
+            error!("Error handling a message: {:?}", e);
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn handle_message<P: CommitProcessor>(message: &[u8], processor: &P) -> Result<()> {

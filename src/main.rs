@@ -47,12 +47,7 @@ async fn main() -> Result<()> {
             .build(),
     );
 
-    let post_indexer = PostIndexer::new(
-        database.clone(),
-        bluesky.clone(),
-        algos.clone(),
-        config.clone(),
-    );
+    let post_indexer = PostIndexer::new(database.clone(), algos.clone(), config.clone());
     let profile_classifier = ProfileClassifier::new(database.clone(), ai.clone(), bluesky.clone());
     let feed_server = FeedServer::new(database.clone(), config.clone(), algos.clone());
 
