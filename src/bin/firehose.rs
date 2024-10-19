@@ -3,7 +3,7 @@ use clap::Parser;
 
 use env_logger::Env;
 use log::{error, info};
-use nederlandskie::services::bluesky;
+use nederlandskie::services::bluesky::{self, Operation};
 use tokio_stream::StreamExt;
 use tokio_tungstenite::tungstenite;
 
@@ -20,7 +20,25 @@ async fn main() -> Result<()> {
 
     while let Some(tungstenite::Message::Binary(message)) = stream.try_next().await? {
         match bluesky::handle_message(&message).await {
-            Ok(Some(commit)) => info!("{:?}", commit),
+            Ok(Some(commit)) => {
+                for operation in commit.operations {
+                    match operation {
+                        Operation::CreatePost {
+                            author_did: _author_did,
+                            cid: _cid,
+                            uri,
+                            post,
+                        } => {
+                            if let Some(langs) = post.langs {
+                                if langs.iter().any(|lang| lang == "en") {
+                                    info!("{uri}: {}", post.text)
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
             Ok(None) => continue,
             Err(e) => error!("Error handling a message: {:?}", e),
         }
