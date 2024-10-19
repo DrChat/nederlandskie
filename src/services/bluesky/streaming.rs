@@ -19,13 +19,14 @@ const ACTION_DELETE: &str = "delete";
 pub const FIREHOSE_HOST: &'static str = "wss://bsky.network";
 pub const STREAMING_TIMEOUT: Duration = Duration::from_secs(60);
 
+#[derive(Debug, Clone)]
 pub struct CommitDetails {
     pub seq: i64,
     pub time: DateTime<Utc>,
     pub operations: Vec<Operation>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Operation {
     CreatePost {
         author_did: String,

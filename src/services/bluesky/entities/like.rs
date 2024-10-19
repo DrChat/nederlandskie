@@ -4,7 +4,7 @@ use anyhow::{anyhow, Error, Result};
 
 use crate::services::bluesky::internals::cbor::CborValue;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LikeRecord {
     pub subject: Subject,
 }
@@ -24,7 +24,7 @@ impl TryFrom<CborValue> for LikeRecord {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Subject {
     pub cid: String,
     pub uri: String,

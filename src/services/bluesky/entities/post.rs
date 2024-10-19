@@ -4,7 +4,7 @@ use anyhow::{anyhow, Error, Result};
 
 use crate::services::bluesky::internals::cbor::CborValue;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PostRecord {
     pub text: String,
     pub langs: Option<Vec<String>>,
@@ -34,7 +34,7 @@ impl TryFrom<CborValue> for PostRecord {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReplyRef {
     pub parent: Ref,
     pub root: Ref,
@@ -59,7 +59,7 @@ impl TryFrom<CborValue> for ReplyRef {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ref {
     pub cid: String,
     pub uri: String,
