@@ -4,7 +4,7 @@ use anyhow::Result;
 use atrium_api::com::atproto::sync::subscribe_repos::Commit;
 use atrium_api::types::Collection;
 use chrono::{DateTime, Utc};
-use tokio_stream::{Stream, StreamExt};
+use tokio_stream::Stream;
 use tokio_tungstenite::{connect_async, tungstenite};
 
 use super::{
@@ -60,9 +60,7 @@ pub enum Operation {
 /// Subscribe to the bluesky firehose.
 pub async fn subscribe_to_operations(
     cursor: Option<i64>,
-) -> Result<
-    impl Stream<Item = Result<Result<tungstenite::Message, tungstenite::Error>, tokio_stream::Elapsed>>,
-> {
+) -> Result<impl Stream<Item = Result<tungstenite::Message, tungstenite::Error>>> {
     let url = match cursor {
         Some(cursor) => format!(
             "{}/xrpc/com.atproto.sync.subscribeRepos?cursor={}",
@@ -72,7 +70,6 @@ pub async fn subscribe_to_operations(
     };
 
     let (stream, _) = connect_async(url).await?;
-    let stream = stream.timeout(STREAMING_TIMEOUT);
     let stream = Box::pin(stream);
 
     Ok(stream)

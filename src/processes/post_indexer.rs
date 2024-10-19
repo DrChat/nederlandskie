@@ -1,3 +1,4 @@
+use std::pin::pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -56,9 +57,10 @@ impl PostIndexer {
 
         info!("Subscribing with cursor {:?}", cursor);
 
-        let mut stream = bluesky::subscribe_to_operations(cursor)
+        let mut stream = pin!(bluesky::subscribe_to_operations(cursor)
             .await
-            .context("failed to subscribe")?;
+            .context("failed to subscribe")?
+            .timeout(bluesky::STREAMING_TIMEOUT));
 
         while let Some(Ok(tungstenite::Message::Binary(message))) = stream.try_next().await? {
             match bluesky::handle_message(&message).await {

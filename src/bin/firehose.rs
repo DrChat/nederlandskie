@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
 
     let mut stream = bluesky::subscribe_to_operations(None).await?;
 
-    while let Some(Ok(tungstenite::Message::Binary(message))) = stream.try_next().await? {
+    while let Some(tungstenite::Message::Binary(message)) = stream.try_next().await? {
         match bluesky::handle_message(&message).await {
             Ok(Some(commit)) => info!("{:?}", commit),
             Ok(None) => continue,
