@@ -3,4 +3,4 @@ mod errors;
 mod server;
 mod state;
 
-pub use server::FeedServer;
+pub use server::serve;

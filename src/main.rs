@@ -9,7 +9,9 @@ use log::info;
 
 use nederlandskie::algos::{AlgosBuilder, Nederlandskie};
 use nederlandskie::config::Config;
-use nederlandskie::processes::{FeedServer, PostIndexer, ProfileClassifier};
+use nederlandskie::processes::{
+    feed_server, post_indexer::PostIndexer, profile_classifier::ProfileClassifier,
+};
 use nederlandskie::services::{Bluesky, Database, AI};
 
 #[tokio::main]
@@ -49,14 +51,17 @@ async fn main() -> Result<()> {
 
     let post_indexer = PostIndexer::new(database.clone(), algos.clone(), config.clone());
     let profile_classifier = ProfileClassifier::new(database.clone(), ai.clone(), bluesky.clone());
-    let feed_server = FeedServer::new(database.clone(), config.clone(), algos.clone());
 
     info!("Starting everything up");
 
     let _ = tokio::try_join!(
         tokio::spawn(post_indexer.start()),
         tokio::spawn(profile_classifier.start()),
-        tokio::spawn(feed_server.serve()),
+        tokio::spawn(feed_server::serve(
+            database.clone(),
+            config.clone(),
+            algos.clone()
+        )),
     )
     .context("failed to join tasks")?;
 
