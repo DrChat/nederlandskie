@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use scooby::postgres::{delete_from, insert_into, select, update, Parameters};
@@ -14,6 +16,14 @@ pub struct Post {
 
 pub struct Database {
     connection_pool: PgPool,
+}
+
+impl Deref for Database {
+    type Target = PgPool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.connection_pool
+    }
 }
 
 impl Database {

@@ -32,3 +32,6 @@ sqlx = { version = "0.8.2", default-features = false, features = ["postgres", "r
 tokio = { version = "1.40.0", features = ["full"] }
 tokio-stream = "0.1.16"
 tokio-tungstenite = { version = "0.24.0", features = ["native-tls"] }
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3
