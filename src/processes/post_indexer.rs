@@ -39,30 +39,39 @@ async fn process_commit(
             } => {
                 let uri = format!("at://{}/{}/{}", did.as_str(), collection, cid);
 
-                if collection == atrium_api::app::bsky::feed::Post::NSID {
-                    let post = match serde_ipld_dagcbor::from_slice::<
-                        <atrium_api::app::bsky::feed::Post as Collection>::Record,
-                    >(&block[..])
-                    {
-                        Ok(post) => post,
-                        Err(e) => {
-                            error!("Error deserializing a post: {:?}", e,);
-                            continue;
-                        }
-                    };
+                match collection.as_str() {
+                    atrium_api::app::bsky::feed::Post::NSID => {
+                        let post = match serde_ipld_dagcbor::from_slice::<
+                            <atrium_api::app::bsky::feed::Post as Collection>::Record,
+                        >(&block[..])
+                        {
+                            Ok(post) => post,
+                            Err(e) => {
+                                error!("Error deserializing a post: {:?}", e,);
+                                continue;
+                            }
+                        };
 
-                    for algo in algos.iter_all() {
-                        if algo.should_index_post(did, &post).await? {
-                            info!("Received insertable post from {}: {post:?}", did.as_str());
+                        for algo in algos.iter_all() {
+                            if algo.should_index_post(did, &post).await? {
+                                info!("Received insertable post from {}: {post:?}", did.as_str());
 
-                            database.insert_post(did, &cid.to_string(), &uri).await?;
+                                database.insert_post(did, &cid.to_string(), &uri).await?;
 
-                            break;
+                                break;
+                            }
                         }
                     }
+                    _ => {}
                 }
             }
-            Operation::Delete { uri: _uri } => {
+            Operation::Delete {
+                collection,
+                did,
+                cid,
+            } => {
+                let _uri = format!("at://{}/{}/{}", did.as_str(), collection, cid);
+
                 // info!("Received a post to delete: {uri}");
                 // self.database.delete_post(uri).await?;
             }

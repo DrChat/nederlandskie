@@ -31,7 +31,9 @@ pub enum Operation {
         block: Vec<u8>,
     },
     Delete {
-        uri: String,
+        collection: String,
+        did: Did,
+        cid: Cid,
     },
 }
 
@@ -96,7 +98,6 @@ async fn extract_operations(commit: &Commit) -> Result<Vec<Operation>> {
     for op in &commit.ops {
         let collection = op.path.split('/').next().expect("op.path is empty");
         let action = op.action.as_str();
-        let uri = format!("at://{}/{}", commit.repo.as_str(), op.path);
 
         let operation = match action {
             ACTION_CREATE => {
@@ -117,7 +118,18 @@ async fn extract_operations(commit: &Commit) -> Result<Vec<Operation>> {
                     block: block.to_vec(),
                 }
             }
-            ACTION_DELETE => Operation::Delete { uri },
+            ACTION_DELETE => {
+                let cid = match &op.cid {
+                    Some(cid_link) => cid_link.0,
+                    None => continue,
+                };
+
+                Operation::Delete {
+                    collection: collection.to_string(),
+                    did: commit.repo.clone(),
+                    cid: cid,
+                }
+            }
             _ => continue,
         };
 
