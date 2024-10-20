@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 
+use atrium_api::{app::bsky::feed::Post, types::Collection};
 use env_logger::Env;
 use log::{error, info};
 use nederlandskie::services::bluesky::{self, Operation};
@@ -23,15 +24,32 @@ async fn main() -> Result<()> {
             Ok(Some(commit)) => {
                 for operation in commit.operations {
                     match operation {
-                        Operation::CreatePost {
-                            author_did: _author_did,
-                            cid: _cid,
-                            uri,
-                            post,
+                        Operation::Create {
+                            collection,
+                            did,
+                            cid,
+                            block,
                         } => {
-                            if let Some(langs) = post.langs {
-                                if langs.iter().any(|lang| lang == "en") {
-                                    info!("{uri}: {}", post.text)
+                            let uri = format!("at://{}/{}/{}", did.as_str(), collection, cid);
+
+                            if collection == atrium_api::app::bsky::feed::Post::NSID {
+                                let post = match serde_ipld_dagcbor::from_slice::<
+                                    <Post as Collection>::Record,
+                                >(&block[..])
+                                {
+                                    Ok(post) => post,
+                                    Err(e) => {
+                                        error!("Error deserializing a post: {:?}", e);
+                                        continue;
+                                    }
+                                };
+
+                                if let Some(langs) = &post.langs {
+                                    if langs.iter().any(|lang| {
+                                        lang.as_ref().language().unwrap().primary() == "en"
+                                    }) {
+                                        info!("{uri}: {}", post.text)
+                                    }
                                 }
                             }
                         }

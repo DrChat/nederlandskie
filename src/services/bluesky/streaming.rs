@@ -1,17 +1,13 @@
 use std::{collections::HashMap, time::Duration};
 
 use anyhow::Result;
-use atrium_api::com::atproto::sync::subscribe_repos::Commit;
-use atrium_api::types::Collection;
+use atrium_api::{com::atproto::sync::subscribe_repos::Commit, types::string::Did};
 use chrono::{DateTime, Utc};
+use ipld_core::cid::Cid;
 use tokio_stream::Stream;
 use tokio_tungstenite::{connect_async, tungstenite};
 
-use super::{
-    entities::{FollowRecord, LikeRecord, PostRecord},
-    internals::cbor::read_record,
-    internals::ipld::Frame,
-};
+use super::internals::ipld::Frame;
 
 const ACTION_CREATE: &str = "create";
 const ACTION_DELETE: &str = "delete";
@@ -28,31 +24,13 @@ pub struct CommitDetails {
 
 #[derive(Debug, Clone)]
 pub enum Operation {
-    CreatePost {
-        author_did: String,
-        cid: String,
-        uri: String,
-        post: PostRecord,
+    Create {
+        collection: String,
+        did: Did,
+        cid: Cid,
+        block: Vec<u8>,
     },
-    CreateLike {
-        author_did: String,
-        cid: String,
-        uri: String,
-        like: LikeRecord,
-    },
-    CreateFollow {
-        author_did: String,
-        cid: String,
-        uri: String,
-        follow: FollowRecord,
-    },
-    DeletePost {
-        uri: String,
-    },
-    DeleteLike {
-        uri: String,
-    },
-    DeleteFollow {
+    Delete {
         uri: String,
     },
 }
@@ -123,55 +101,23 @@ async fn extract_operations(commit: &Commit) -> Result<Vec<Operation>> {
         let operation = match action {
             ACTION_CREATE => {
                 let cid = match &op.cid {
-                    Some(cid_link) => cid_link.0.to_string(),
+                    Some(cid_link) => cid_link.0,
                     None => continue,
                 };
 
-                let block = match blocks_by_cid.get(&cid) {
+                let block = match blocks_by_cid.get(&cid.to_string()) {
                     Some(block) => block,
                     None => continue,
                 };
 
-                match collection {
-                    atrium_api::app::bsky::feed::Post::NSID => {
-                        let post: PostRecord = read_record(block)?;
-
-                        Operation::CreatePost {
-                            author_did: commit.repo.to_string(),
-                            cid: cid.to_string(),
-                            uri,
-                            post,
-                        }
-                    }
-                    atrium_api::app::bsky::feed::Like::NSID => {
-                        let like: LikeRecord = read_record(block)?;
-
-                        Operation::CreateLike {
-                            author_did: commit.repo.to_string(),
-                            cid: cid.to_string(),
-                            uri,
-                            like,
-                        }
-                    }
-                    atrium_api::app::bsky::graph::Follow::NSID => {
-                        let follow: FollowRecord = read_record(block)?;
-
-                        Operation::CreateFollow {
-                            author_did: commit.repo.to_string(),
-                            cid: cid.to_string(),
-                            uri,
-                            follow,
-                        }
-                    }
-                    _ => continue,
+                Operation::Create {
+                    collection: collection.to_string(),
+                    did: commit.repo.clone(),
+                    cid: cid,
+                    block: block.to_vec(),
                 }
             }
-            ACTION_DELETE => match collection {
-                atrium_api::app::bsky::feed::Post::NSID => Operation::DeletePost { uri },
-                atrium_api::app::bsky::feed::Like::NSID => Operation::DeleteLike { uri },
-                atrium_api::app::bsky::graph::Follow::NSID => Operation::DeleteFollow { uri },
-                _ => continue,
-            },
+            ACTION_DELETE => Operation::Delete { uri },
             _ => continue,
         };
 

@@ -2486,7 +2486,6 @@ dependencies = [
  "scooby",
  "serde",
  "serde_ipld_dagcbor",
- "sk-cbor",
  "sqlx",
  "tokio",
  "tokio-stream",
@@ -3348,12 +3347,6 @@ dependencies = [
  "digest",
  "rand_core",
 ]
-
-[[package]]
-name = "sk-cbor"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e94879a793aba6e65d691f345cfd172c4cc924a78259d5f9612a2cbfb78847a"
 
 [[package]]
 name = "slab"

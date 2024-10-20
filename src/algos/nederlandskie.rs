@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use atrium_api::types::Collection;
 use chrono::{DateTime, Utc};
 use lingua::Language::Russian;
 use lingua::LanguageDetector;
 
 use super::Algo;
 
-use crate::services::bluesky;
 use crate::services::database::{self, Database};
 
 /// An algorithm that serves posts written in Russian by people living in Netherlands
@@ -27,7 +27,10 @@ impl Nederlandskie {
 }
 
 impl Nederlandskie {
-    fn is_post_in_russian(&self, post: &bluesky::PostRecord) -> bool {
+    fn is_post_in_russian(
+        &self,
+        post: &<atrium_api::app::bsky::feed::Post as Collection>::Record,
+    ) -> bool {
         self.language_detector.detect_language_of(&post.text) == Some(Russian)
     }
 
@@ -41,7 +44,7 @@ impl Algo for Nederlandskie {
     async fn should_index_post(
         &self,
         author_did: &str,
-        post: &bluesky::PostRecord,
+        post: &<atrium_api::app::bsky::feed::Post as Collection>::Record,
     ) -> Result<bool> {
         Ok(self.is_post_in_russian(post)
             || self.is_profile_residing_in_netherlands(author_did).await?)

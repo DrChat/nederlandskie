@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use atrium_api::types::Collection;
 use log::{debug, error, info};
 use tokio_stream::StreamExt;
 use tokio_tungstenite::tungstenite;
@@ -76,32 +77,44 @@ impl PostIndexer {
     async fn process_commit(&self, commit: &CommitDetails) -> Result<()> {
         for operation in &commit.operations {
             match operation {
-                Operation::CreatePost {
-                    author_did,
+                Operation::Create {
+                    collection,
+                    did,
                     cid,
-                    uri,
-                    post,
+                    block,
                 } => {
-                    for algo in self.algos.iter_all() {
-                        if algo.should_index_post(author_did, post).await? {
-                            info!("Received insertable post from {author_did}: {post:?}",);
+                    let uri = format!("at://{}/{}/{}", did.as_str(), collection, cid);
 
-                            self.database
-                                .insert_profile_if_it_doesnt_exist(author_did)
-                                .await?;
+                    if collection == atrium_api::app::bsky::feed::Post::NSID {
+                        let post = match serde_ipld_dagcbor::from_slice::<
+                            <atrium_api::app::bsky::feed::Post as Collection>::Record,
+                        >(&block[..])
+                        {
+                            Ok(post) => post,
+                            Err(e) => {
+                                error!("Error deserializing a post: {:?}", e,);
+                                continue;
+                            }
+                        };
 
-                            self.database.insert_post(author_did, cid, uri).await?;
+                        for algo in self.algos.iter_all() {
+                            if algo.should_index_post(did, &post).await? {
+                                info!("Received insertable post from {}: {post:?}", did.as_str());
 
-                            break;
+                                self.database.insert_profile_if_it_doesnt_exist(did).await?;
+                                self.database
+                                    .insert_post(did, &cid.to_string(), &uri)
+                                    .await?;
+
+                                break;
+                            }
                         }
                     }
                 }
-                Operation::DeletePost { uri } => {
-                    info!("Received a post to delete: {uri}");
-
-                    self.database.delete_post(uri).await?;
+                Operation::Delete { uri: _uri } => {
+                    // info!("Received a post to delete: {uri}");
+                    // self.database.delete_post(uri).await?;
                 }
-                _ => continue,
             }
         }
 

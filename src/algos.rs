@@ -4,17 +4,20 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use atrium_api::types::Collection;
 use chrono::{DateTime, Utc};
 
-use crate::services::bluesky;
 use crate::services::database::{self, Database};
 
 pub use self::nederlandskie::Nederlandskie;
 
 #[async_trait]
 pub trait Algo {
-    async fn should_index_post(&self, author_did: &str, post: &bluesky::PostRecord)
-        -> Result<bool>;
+    async fn should_index_post(
+        &self,
+        author_did: &str,
+        post: &<atrium_api::app::bsky::feed::Post as Collection>::Record,
+    ) -> Result<bool>;
 
     async fn fetch_posts(
         &self,
