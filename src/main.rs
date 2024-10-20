@@ -8,7 +8,7 @@ use log::info;
 
 use nederlandskie::algos::{AlgosBuilder, Nederlandskie};
 use nederlandskie::config::Config;
-use nederlandskie::processes::{feed_server, post_indexer::PostIndexer};
+use nederlandskie::processes::{feed_server, post_indexer};
 use nederlandskie::services::{Bluesky, Database};
 
 #[tokio::main]
@@ -34,12 +34,14 @@ async fn main() -> Result<()> {
             .build(),
     );
 
-    let post_indexer = PostIndexer::new(database.clone(), algos.clone(), config.clone());
-
     info!("Starting everything up");
 
     let _ = tokio::try_join!(
-        tokio::spawn(post_indexer.start()),
+        tokio::spawn(post_indexer::start(
+            database.clone(),
+            config.clone(),
+            algos.clone(),
+        )),
         tokio::spawn(feed_server::serve(
             database.clone(),
             config.clone(),
