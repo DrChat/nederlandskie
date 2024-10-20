@@ -1,60 +1,23 @@
-use std::pin::pin;
 use std::sync::Arc;
-use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use atrium_api::types::Collection;
 use log::{debug, error, info};
-use tokio_stream::StreamExt;
-use tokio_tungstenite::tungstenite;
+use tokio::sync::broadcast;
 
 use crate::algos::Algos;
 use crate::config::Config;
-use crate::services::bluesky::{self, CommitDetails, Operation, FIREHOSE_HOST};
+use crate::services::bluesky::{CommitDetails, Operation, FIREHOSE_HOST};
 use crate::services::Database;
 
-pub async fn start(database: Arc<Database>, config: Arc<Config>, algos: Arc<Algos>) -> Result<()> {
-    info!("Starting");
-
-    loop {
-        if let Err(e) = process_from_last_point(&database, &algos, &config).await {
-            error!("Stopped because of an error: {}", e);
-        }
-
-        info!("Waiting 10 seconds before reconnecting...");
-
-        tokio::time::sleep(Duration::from_secs(10)).await;
-    }
-}
-
-async fn process_from_last_point(
-    database: &Database,
-    algos: &Algos,
-    config: &Config,
+pub async fn start(
+    database: Arc<Database>,
+    config: Arc<Config>,
+    algos: Arc<Algos>,
+    mut firehose: broadcast::Receiver<CommitDetails>,
 ) -> Result<()> {
-    let cursor = database
-        .fetch_subscription_cursor(FIREHOSE_HOST, &config.feed_generator_did)
-        .await?;
-
-    if cursor.is_none() {
-        database
-            .create_subscription_state(FIREHOSE_HOST, &config.feed_generator_did)
-            .await?;
-    }
-
-    info!("Subscribing with cursor {:?}", cursor);
-
-    let mut stream = pin!(bluesky::subscribe_to_operations(cursor)
-        .await
-        .context("failed to subscribe")?
-        .timeout(bluesky::STREAMING_TIMEOUT));
-
-    while let Some(Ok(tungstenite::Message::Binary(message))) = stream.try_next().await? {
-        match bluesky::handle_message(&message).await {
-            Ok(Some(commit)) => process_commit(database, algos, config, &commit).await?,
-            Ok(None) => continue,
-            Err(e) => error!("Error handling a message: {:?}", e),
-        }
+    while let Ok(commit) = firehose.recv().await {
+        process_commit(&database, &algos, &config, &commit).await?;
     }
 
     Ok(())
