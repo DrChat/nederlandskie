@@ -4,7 +4,8 @@ use std::pin::pin;
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use env_logger::Env;
+use figment::providers::{Env, Format, Toml};
+use figment::Figment;
 use log::info;
 use tokio::sync::broadcast;
 use tokio_stream::StreamExt;
@@ -41,11 +42,17 @@ async fn firehose_server(cursor: Option<i64>, tx: broadcast::Sender<CommitDetail
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     info!("Loading configuration");
 
-    let config = Arc::new(Config::load().context("failed to load configuration")?);
+    let config = Arc::new(
+        Figment::new()
+            .merge(Toml::file("config.toml"))
+            .merge(Env::prefixed("BSKY_"))
+            .extract::<Config>()
+            .context("failed to load configuration")?,
+    );
 
     info!("Initializing service clients");
 
@@ -63,12 +70,12 @@ async fn main() -> Result<()> {
     );
 
     let cursor = database
-        .fetch_subscription_cursor(FIREHOSE_HOST, &config.feed_generator_did)
+        .fetch_subscription_cursor(FIREHOSE_HOST, &config.feed_generator_hostname)
         .await?;
 
     if cursor.is_none() {
         database
-            .create_subscription_state(FIREHOSE_HOST, &config.feed_generator_did)
+            .create_subscription_state(FIREHOSE_HOST, &config.feed_generator_hostname)
             .await?;
     }
 

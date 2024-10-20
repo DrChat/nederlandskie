@@ -1,3 +1,12 @@
-/.vscode
-/target
-.env
+/*
+!/.github
+!/dkr
+!/sql
+!/src
+!/.gitignore
+!/Cargo.lock
+!/Cargo.toml
+!/config.toml.example
+!/Cross.toml
+!/docker-compose.yaml
+!/README.md

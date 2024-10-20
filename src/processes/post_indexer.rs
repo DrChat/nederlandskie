@@ -72,12 +72,12 @@ async fn process_commit(
     if commit.seq % 20 == 0 {
         debug!(
             "Updating cursor for {} to {} ({})",
-            config.feed_generator_did.as_str(),
+            config.feed_generator_hostname.as_str(),
             commit.seq,
             commit.time
         );
         database
-            .update_subscription_cursor(FIREHOSE_HOST, &config.feed_generator_did, commit.seq)
+            .update_subscription_cursor(FIREHOSE_HOST, &config.feed_generator_hostname, commit.seq)
             .await?;
     }
 

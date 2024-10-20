@@ -3,6 +3,7 @@ use std::sync::Arc;
 use atrium_api::app::bsky::feed::describe_feed_generator::{
     FeedData, OutputData as FeedGeneratorDescription,
 };
+use atrium_api::types::string::Did;
 use atrium_api::types::Object;
 use axum::{extract::State, Json};
 
@@ -13,7 +14,7 @@ pub async fn describe_feed_generator(
     State(algos): State<Arc<Algos>>,
 ) -> Json<FeedGeneratorDescription> {
     Json(FeedGeneratorDescription {
-        did: config.feed_generator_did.clone(),
+        did: Did::new(format!("did:web:{}", config.feed_generator_hostname)).unwrap(),
         feeds: algos
             .iter_names()
             .map(|name| FeedData {
