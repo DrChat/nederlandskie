@@ -4,15 +4,12 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use env_logger::Env;
-use lingua::LanguageDetectorBuilder;
 use log::info;
 
 use nederlandskie::algos::{AlgosBuilder, Nederlandskie};
 use nederlandskie::config::Config;
-use nederlandskie::processes::{
-    feed_server, post_indexer::PostIndexer, profile_classifier::ProfileClassifier,
-};
-use nederlandskie::services::{Bluesky, Database, AI};
+use nederlandskie::processes::{feed_server, post_indexer::PostIndexer};
+use nederlandskie::services::{Bluesky, Database};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,39 +21,25 @@ async fn main() -> Result<()> {
 
     info!("Initializing service clients");
 
-    let ai = Arc::new(AI::new(&config.chat_gpt_api_key, "https://api.openai.com"));
-    let bluesky = Arc::new(Bluesky::unauthenticated());
+    let _bluesky = Arc::new(Bluesky::unauthenticated());
     let database = Arc::new(
         Database::connect(&config.database_url)
             .await
             .context("failed to connect to database")?,
     );
 
-    info!("Initializing language detector");
-
-    let language_detector = Arc::new(
-        LanguageDetectorBuilder::from_all_languages_with_cyrillic_script()
-            .with_preloaded_language_models()
-            .build(),
-    );
-
     let algos = Arc::new(
         AlgosBuilder::new()
-            .add(
-                "nederlandskie",
-                Nederlandskie::new(language_detector, database.clone()),
-            )
+            .add("nederlandskie", Nederlandskie::new(database.clone()))
             .build(),
     );
 
     let post_indexer = PostIndexer::new(database.clone(), algos.clone(), config.clone());
-    let profile_classifier = ProfileClassifier::new(database.clone(), ai.clone(), bluesky.clone());
 
     info!("Starting everything up");
 
     let _ = tokio::try_join!(
         tokio::spawn(post_indexer.start()),
-        tokio::spawn(profile_classifier.start()),
         tokio::spawn(feed_server::serve(
             database.clone(),
             config.clone(),

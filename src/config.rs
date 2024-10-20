@@ -1,8 +1,10 @@
 use anyhow::{anyhow, Result};
 use atrium_api::types::string::Did;
 use dotenv::dotenv;
+use serde::Deserialize;
 use std::env;
 
+#[derive(Deserialize, Clone)]
 pub struct Config {
     pub chat_gpt_api_key: String,
     pub database_url: String,

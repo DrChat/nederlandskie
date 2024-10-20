@@ -101,7 +101,6 @@ impl PostIndexer {
                             if algo.should_index_post(did, &post).await? {
                                 info!("Received insertable post from {}: {post:?}", did.as_str());
 
-                                self.database.insert_profile_if_it_doesnt_exist(did).await?;
                                 self.database
                                     .insert_post(did, &cid.to_string(), &uri)
                                     .await?;
