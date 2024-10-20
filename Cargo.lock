@@ -2519,7 +2519,6 @@ dependencies = [
  "lingua",
  "log",
  "rs-car",
- "scooby",
  "serde",
  "serde_ipld_dagcbor",
  "sqlx",
@@ -3238,12 +3237,6 @@ checksum = "e9aaafd5a2b6e3d657ff009d82fbd630b6bd54dd4eb06f21693925cdf80f9b8b"
 dependencies = [
  "windows-sys 0.59.0",
 ]
-
-[[package]]
-name = "scooby"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b423db262cb0854fa13e81957e3cdf6bdd0dfa140a6816e81a553681b50b8a04"
 
 [[package]]
 name = "scopeguard"

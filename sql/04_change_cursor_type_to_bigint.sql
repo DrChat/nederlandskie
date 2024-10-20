@@ -1,1 +1,0 @@
-ALTER TABLE SubscriptionState ALTER COLUMN cursor TYPE BIGINT;

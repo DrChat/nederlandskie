@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE SubscriptionState SET cursor = $1 WHERE service = $2 AND host = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "53730ab78f8123c50fbde5e122b228aa45e8c5a2eb678addfba5dce93dbf2b9d"
+}
